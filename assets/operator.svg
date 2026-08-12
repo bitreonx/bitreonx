@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="310" viewBox="0 0 900 310" role="img" aria-labelledby="title desc">
+<title id="title">BitreonX operator readout</title>
+<desc id="desc">Terminal-style operator configuration for bitreonx. The real GitHub avatar is displayed beside this panel by the README.</desc>
+<defs>
+  <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0" stop-color="#070A0F"/><stop offset="1" stop-color="#0A1119"/>
+  </linearGradient>
+  <linearGradient id="rule" x1="0" y1="0" x2="1" y2="0">
+    <stop offset="0" stop-color="#72F1B8"/><stop offset=".55" stop-color="#86D7FF"/><stop offset="1" stop-color="#B794F4"/>
+  </linearGradient>
+</defs>
+<style>
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono",monospace}
+.cursor{animation:blink 1s steps(1,end) infinite}
+.live{animation:pulse 2.2s ease-in-out infinite}
+.scan{animation:scan 6s ease-in-out infinite}
+@keyframes blink{0%,48%{opacity:1}49%,100%{opacity:0}}
+@keyframes pulse{0%,100%{opacity:.4}50%{opacity:1}}
+@keyframes scan{0%,20%{transform:translateX(-260px);opacity:0}45%{opacity:.13}72%,100%{transform:translateX(900px);opacity:0}}
+@media (prefers-reduced-motion:reduce){.cursor,.live,.scan{animation:none}}
+</style>
+<rect width="900" height="310" rx="22" fill="url(#bg)"/>
+<rect x="1" y="1" width="898" height="308" rx="21" fill="none" stroke="#17222D"/>
+<text x="32" y="42" class="mono" font-size="12" letter-spacing="2" fill="#9BA8B7">OPERATOR // @BITREONX</text>
+<circle cx="701" cy="38" r="4" fill="#72F1B8" class="live"/>
+<text x="868" y="42" text-anchor="end" class="mono" font-size="10.5" fill="#72F1B8">PROFILE IMAGE: GITHUB SOURCE</text>
+<path d="M32 60H868" stroke="#17222D"/>
+<rect x="32" y="82" width="836" height="182" rx="16" fill="#0B1118" stroke="#17222D"/>
+<rect x="32" y="82" width="3" height="182" rx="2" fill="url(#rule)"/>
+<g class="scan"><rect x="-160" y="83" width="140" height="180" fill="#72F1B8"/></g>
+
+<text x="58" y="116" class="mono" font-size="11.5" fill="#7F8B99">role</text>
+<text x="270" y="116" class="mono" font-size="11.5" fill="#E6EDF3">builder / systems tinkerer</text>
+
+<text x="58" y="150" class="mono" font-size="11.5" fill="#7F8B99">current_bias</text>
+<text x="270" y="150" class="mono" font-size="11.5" fill="#86D7FF">agents + tooling + product craft</text>
+
+<text x="58" y="184" class="mono" font-size="11.5" fill="#7F8B99">design_rule</text>
+<text x="270" y="184" class="mono" font-size="11.5" fill="#72F1B8">demonstrate &gt; describe</text>
+
+<text x="58" y="218" class="mono" font-size="11.5" fill="#7F8B99">failure_mode</text>
+<text x="270" y="218" class="mono" font-size="11.5" fill="#FF7B72">dead buttons = segfault</text>
+
+<text x="58" y="252" class="mono" font-size="11.5" fill="#7F8B99">default_state</text>
+<text x="270" y="252" class="mono" font-size="11.5" fill="#F6C177">still compiling</text>
+
+<text x="32" y="290" class="mono" font-size="10.5" fill="#637181">$ cat /etc/bitreonx</text>
+<rect x="179" y="280" width="7" height="12" rx="1" fill="#72F1B8" class="cursor"/>
+<text x="868" y="290" text-anchor="end" class="mono" font-size="10" fill="#637181">identity is output, not a badge</text>
+</svg>

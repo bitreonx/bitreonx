@@ -1,0 +1,215 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1916" height="821" viewBox="0 0 1916 821" role="img" aria-labelledby="title desc">
+  <title id="title">BITREONX terminal hero</title>
+  <desc id="desc">A dark terminal style banner with a large stylized BITREONX wordmark, status panels, and operator interface details.</desc>
+  <defs>
+    <linearGradient id="bggrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#060b10"/>
+      <stop offset="1" stop-color="#071018"/>
+    </linearGradient>
+    <filter id="glowCyan" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="4" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <style>
+      .mono{font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;}
+      .sans{font-family: Inter, Arial, Helvetica, sans-serif;}
+      .strokeC{stroke:#34f4cf;}
+      .fillC{fill:#34f4cf;}
+      .fillG{fill:#8f99a8;}
+      .fillW{fill:#c9d0dc;}
+      .fillY{fill:#f0b741;}
+      .fillP{fill:#d368ff;}
+      .fillB{fill:#5ad6ff;}
+    </style>
+  </defs>
+
+  <rect width="1916" height="821" rx="34" fill="url(#bggrad)"/>
+  <rect x="1.5" y="1.5" width="1913" height="818" rx="32" fill="none" stroke="#20313f" stroke-width="3"/>
+
+  <!-- top chrome -->
+  <circle cx="58" cy="52" r="13" fill="#ff7c70"/>
+  <circle cx="96" cy="52" r="13" fill="#f2c14f"/>
+  <circle cx="133" cy="52" r="13" fill="#5cda72"/>
+  <text x="182" y="65" class="mono fillG" font-size="28">~/bitreonx/profile</text>
+  <circle cx="1760" cy="52" r="10" fill="#34f4cf"/>
+  <text x="1790" y="65" class="mono fillC" font-size="26">ONLINE</text>
+  <line x1="14" y1="90" x2="1902" y2="90" stroke="#20313f" stroke-width="2"/>
+
+  <text x="84" y="151" class="mono fillC" font-size="28" letter-spacing="4">SYSTEM BOOT // OPERATOR BITREONX</text>
+
+  <!-- line numbers -->
+  <g class="mono" font-size="30">
+    <text x="82" y="232" fill="#bcc2cc">01</text><text x="145" y="232" class="fillC">//</text>
+    <text x="82" y="273" fill="#bcc2cc">02</text><text x="145" y="273" class="fillC">//</text>
+    <text x="82" y="314" fill="#bcc2cc">03</text><text x="145" y="314" class="fillC">//</text>
+    <text x="82" y="355" fill="#bcc2cc">04</text><text x="145" y="355" class="fillC">//</text>
+    <text x="82" y="396" fill="#bcc2cc">05</text><text x="145" y="396" class="fillC">//</text>
+    <text x="82" y="437" fill="#bcc2cc">06</text><text x="145" y="437" class="fillC">//</text>
+  </g>
+
+  <!-- big wordmark group: normalized 195px optical cells / common y=8..162 -->
+  <g transform="translate(226 187)" fill="none" stroke="#34f4cf" stroke-width="4" stroke-linecap="square" stroke-linejoin="round" filter="url(#glowCyan)">
+
+    <!-- B / cell center 90.0 -->
+    <g transform="translate(23 0)">
+      <path d="M0 8H108L134 34V60L115 80L134 99V136L108 162H0Z"/>
+      <path d="M20 30H100M20 80H103M20 140H100M20 30V140M102 32V76M103 84V138"/>
+      <path d="M21 55H31M45 55H58M21 105H34M51 105H74M21 132H33" stroke="#d368ff"/>
+      <path d="M82 22L101 41M116 30L128 19M115 81L127 70" stroke="#a57cff"/>
+      <path d="M117 104L131 118" stroke="#5ad6ff"/>
+    </g>
+
+    <!-- I / cell center 285.0 -->
+    <g transform="translate(219 0)">
+      <path d="M19 8H115L132 25L115 42H19L2 25Z M67 42V128 M19 128H115L132 145L115 162H19L2 145Z"/>
+      <text x="40" y="35" class="mono" font-size="18" fill="#5ad6ff" stroke="none">&lt;&gt;</text>
+      <text x="60" y="77" class="mono" font-size="18" fill="#5ad6ff" stroke="none">||</text>
+      <text x="60" y="99" class="mono" font-size="18" fill="#5ad6ff" stroke="none">||</text>
+      <text x="60" y="121" class="mono" font-size="18" fill="#a57cff" stroke="none">*</text>
+      <text x="55" y="154" class="mono" font-size="18" fill="#5ad6ff" stroke="none">==</text>
+      <text x="43" y="92" class="mono" font-size="18" fill="#d368ff" stroke="none">•</text>
+    </g>
+
+    <!-- T / cell center 480.0 -->
+    <g transform="translate(390 0)">
+      <path d="M0 8H180V50M90 50V162M50 162H130M0 8V50M180 8V50"/>
+      <text x="39" y="32" class="mono" font-size="18" fill="#a57cff" stroke="none">•••••••••</text>
+      <text x="84" y="82" class="mono" font-size="18" fill="#5ad6ff" stroke="none">||</text>
+      <text x="84" y="104" class="mono" font-size="18" fill="#5ad6ff" stroke="none">||</text>
+      <text x="80" y="126" class="mono" font-size="18" fill="#d368ff" stroke="none">++</text>
+      <text x="77" y="147" class="mono" font-size="18" fill="#5ad6ff" stroke="none">{}</text>
+      <text x="84" y="159" class="mono" font-size="18" fill="#d368ff" stroke="none">+</text>
+    </g>
+
+    <!-- R / cell center 675.5 -->
+    <g transform="translate(596 0)">
+      <path d="M0 162V8H117L135 26V61L117 79H0M117 79L159 162"/>
+      <path d="M19 31H82M19 73H83M101 31L116 46M101 73L116 58"/>
+      <text x="24" y="29" class="mono" font-size="18" fill="#5ad6ff" stroke="none">//</text>
+      <text x="16" y="61" class="mono" font-size="18" fill="#d368ff" stroke="none">+</text>
+      <text x="16" y="84" class="mono" font-size="18" fill="#5ad6ff" stroke="none">+</text>
+      <text x="16" y="105" class="mono" font-size="18" fill="#5ad6ff" stroke="none">R</text>
+      <text x="16" y="126" class="mono" font-size="18" fill="#5ad6ff" stroke="none">+</text>
+      <text x="16" y="147" class="mono" font-size="18" fill="#d368ff" stroke="none">=</text>
+      <text x="16" y="160" class="mono" font-size="18" fill="#d368ff" stroke="none">≡</text>
+      <text x="105" y="80" class="mono" font-size="18" fill="#5ad6ff" stroke="none">+</text>
+      <text x="113" y="128" class="mono" font-size="18" fill="#5ad6ff" stroke="none">/</text>
+      <text x="124" y="139" class="mono" font-size="18" fill="#5ad6ff" stroke="none">/</text>
+      <text x="136" y="150" class="mono" font-size="18" fill="#5ad6ff" stroke="none">/</text>
+      <text x="95" y="42" class="mono" font-size="18" fill="#5ad6ff" stroke="none">•</text>
+      <text x="109" y="56" class="mono" font-size="18" fill="#5ad6ff" stroke="none">•</text>
+      <text x="121" y="69" class="mono" font-size="18" fill="#5ad6ff" stroke="none">•</text>
+      <text x="98" y="125" class="mono" font-size="18" fill="#d368ff" stroke="none">•</text>
+      <text x="116" y="143" class="mono" font-size="18" fill="#d368ff" stroke="none">•</text>
+      <text x="134" y="159" class="mono" font-size="18" fill="#d368ff" stroke="none">•</text>
+    </g>
+
+    <!-- E / cell center 870.5 -->
+    <g transform="translate(802 0)">
+      <path d="M137 8H0V162H137M0 85H111"/>
+      <path d="M19 31H51M19 73H51M20 139H44M85 32H121M85 85H106M85 139H118"/>
+      <text x="7" y="31" class="mono" font-size="18" fill="#5ad6ff" stroke="none">==</text>
+      <text x="92" y="31" class="mono" font-size="18" fill="#a57cff" stroke="none">•••••</text>
+      <text x="117" y="28" class="mono" font-size="18" fill="#5ad6ff" stroke="none">[]</text>
+      <text x="10" y="60" class="mono" font-size="18" fill="#5ad6ff" stroke="none">•</text>
+      <text x="20" y="78" class="mono" font-size="18" fill="#5ad6ff" stroke="none">•</text>
+      <text x="31" y="96" class="mono" font-size="18" fill="#5ad6ff" stroke="none">•</text>
+      <text x="44" y="114" class="mono" font-size="18" fill="#5ad6ff" stroke="none">•</text>
+      <text x="52" y="128" class="mono" font-size="18" fill="#d368ff" stroke="none">+</text>
+      <text x="6" y="129" class="mono" font-size="18" fill="#5ad6ff" stroke="none">||</text>
+      <text x="68" y="86" class="mono" font-size="18" fill="#d368ff" stroke="none">+</text>
+      <text x="102" y="145" class="mono" font-size="18" fill="#5ad6ff" stroke="none">+/</text>
+      <text x="109" y="157" class="mono" font-size="18" fill="#5ad6ff" stroke="none">//</text>
+      <text x="22" y="157" class="mono" font-size="18" fill="#5ad6ff" stroke="none">••••</text>
+    </g>
+
+    <!-- O / cell center 1068.5 -->
+    <g transform="translate(997 0)">
+      <path d="M39 8H125L143 26V144L125 162H39L21 144V26Z"/>
+      <path d="M55 30H109L124 45V125L109 140H55L40 125V45Z"/>
+      <text x="49" y="37" class="mono" font-size="18" fill="#d368ff" stroke="none">•••••••</text>
+      <text x="20" y="61" class="mono" font-size="18" fill="#5ad6ff" stroke="none">•</text>
+      <text x="133" y="61" class="mono" font-size="18" fill="#5ad6ff" stroke="none">•</text>
+      <text x="22" y="83" class="mono" font-size="18" fill="#5ad6ff" stroke="none">•</text>
+      <text x="131" y="83" class="mono" font-size="18" fill="#5ad6ff" stroke="none">•</text>
+      <text x="24" y="105" class="mono" font-size="18" fill="#5ad6ff" stroke="none">•</text>
+      <text x="129" y="105" class="mono" font-size="18" fill="#5ad6ff" stroke="none">•</text>
+      <text x="22" y="128" class="mono" font-size="18" fill="#5ad6ff" stroke="none">•</text>
+      <text x="130" y="128" class="mono" font-size="18" fill="#5ad6ff" stroke="none">•</text>
+      <text x="68" y="99" class="mono" font-size="18" fill="#5ad6ff" stroke="none">||</text>
+      <text x="62" y="153" class="mono" font-size="18" fill="#a57cff" stroke="none">&lt;&gt;</text>
+    </g>
+
+    <!-- N / cell center 1260.5 -->
+    <g transform="translate(1185 0)">
+      <path d="M0 162V8H64L151 162V8"/>
+      <path d="M24 25H42M24 58H42M24 92H42M24 126H42M24 149H42"/>
+      <text x="4" y="29" class="mono" font-size="18" fill="#5ad6ff" stroke="none">//+</text>
+      <text x="31" y="51" class="mono" font-size="18" fill="#5ad6ff" stroke="none">\</text>
+      <text x="42" y="62" class="mono" font-size="18" fill="#a57cff" stroke="none">•</text>
+      <text x="53" y="73" class="mono" font-size="18" fill="#d368ff" stroke="none">•</text>
+      <text x="64" y="84" class="mono" font-size="18" fill="#d368ff" stroke="none">•</text>
+      <text x="75" y="95" class="mono" font-size="18" fill="#d368ff" stroke="none">•</text>
+      <text x="86" y="106" class="mono" font-size="18" fill="#d368ff" stroke="none">•</text>
+      <text x="97" y="117" class="mono" font-size="18" fill="#a57cff" stroke="none">•</text>
+      <text x="108" y="128" class="mono" font-size="18" fill="#a57cff" stroke="none">•</text>
+      <text x="119" y="139" class="mono" font-size="18" fill="#a57cff" stroke="none">•</text>
+      <text x="132" y="86" class="mono" font-size="18" fill="#5ad6ff" stroke="none">+</text>
+      <text x="132" y="109" class="mono" font-size="18" fill="#5ad6ff" stroke="none">+</text>
+      <text x="132" y="135" class="mono" font-size="18" fill="#5ad6ff" stroke="none">+</text>
+      <text x="129" y="154" class="mono" font-size="18" fill="#5ad6ff" stroke="none">[]</text>
+    </g>
+
+    <!-- X / cell center 1455.5 -->
+    <g transform="translate(1380 0)">
+      <path d="M0 8L66 85L0 162M151 8L85 85L151 162"/>
+      <text x="0" y="20" class="mono" font-size="18" fill="#5ad6ff" stroke="none">/+{</text>
+      <text x="104" y="20" class="mono" font-size="18" fill="#5ad6ff" stroke="none">}</text>
+      <text x="29" y="29" class="mono" font-size="18" fill="#a57cff" stroke="none">✦</text>
+      <text x="45" y="37" class="mono" font-size="18" fill="#5ad6ff" stroke="none">≡</text>
+      <text x="49" y="57" class="mono" font-size="18" fill="#5ad6ff" stroke="none">x=</text>
+      <text x="34" y="72" class="mono" font-size="18" fill="#5ad6ff" stroke="none">\</text>
+      <text x="46" y="84" class="mono" font-size="18" fill="#5ad6ff" stroke="none">\</text>
+      <text x="58" y="96" class="mono" font-size="18" fill="#d368ff" stroke="none">•</text>
+      <text x="69" y="107" class="mono" font-size="18" fill="#d368ff" stroke="none">•</text>
+      <text x="80" y="118" class="mono" font-size="18" fill="#d368ff" stroke="none">•</text>
+      <text x="91" y="129" class="mono" font-size="18" fill="#a57cff" stroke="none">•</text>
+      <text x="63" y="109" class="mono" font-size="18" fill="#5ad6ff" stroke="none">&lt;&gt;</text>
+      <text x="121" y="62" class="mono" font-size="18" fill="#5ad6ff" stroke="none">/</text>
+      <text x="131" y="74" class="mono" font-size="18" fill="#5ad6ff" stroke="none">/</text>
+      <text x="142" y="86" class="mono" font-size="18" fill="#a57cff" stroke="none">•</text>
+      <text x="133" y="144" class="mono" font-size="18" fill="#a57cff" stroke="none">}</text>
+      <text x="-2" y="147" class="mono" font-size="18" fill="#d368ff" stroke="none">{</text>
+    </g>
+  </g>
+  <text x="291" y="520" class="mono fillG" font-size="31" letter-spacing="12">CONTROL PLANE / BUILD SYSTEMS THAT EARN THEIR PIXELS</text>
+
+  <!-- info panel -->
+  <rect x="73" y="557" width="1768" height="124" rx="24" fill="#0a1118" stroke="#243444" stroke-width="2"/>
+  <line x1="412" y1="580" x2="412" y2="655" stroke="#243444" stroke-width="2"/>
+  <line x1="719" y1="580" x2="719" y2="655" stroke="#243444" stroke-width="2"/>
+  <line x1="1128" y1="580" x2="1128" y2="655" stroke="#243444" stroke-width="2"/>
+  <line x1="1418" y1="580" x2="1418" y2="655" stroke="#243444" stroke-width="2"/>
+
+  <g class="sans">
+    <text x="125" y="605" font-size="26" fill="#8f99a8">FOCUS</text>
+    <text x="125" y="648" font-size="28" fill="#55f0d0">agent systems</text>
+
+    <text x="483" y="605" font-size="26" fill="#8f99a8">BIAS</text>
+    <text x="483" y="648" font-size="28" fill="#55f05f">ship &gt; talk</text>
+
+    <text x="788" y="605" font-size="26" fill="#8f99a8">QUALITY GATE</text>
+    <text x="788" y="648" font-size="28" fill="#53d8ff">receipts required</text>
+
+    <text x="1196" y="605" font-size="26" fill="#8f99a8">AI SLOP</text>
+    <text x="1196" y="648" font-size="28" fill="#d368ff">/dev/null</text>
+
+    <text x="1485" y="605" font-size="26" fill="#8f99a8">STATE</text>
+    <text x="1485" y="648" font-size="28" fill="#f0b741">still compiling</text>
+  </g>
+
+  <text x="76" y="753" class="mono" font-size="30" fill="#34f4cf">$</text>
+  <text x="106" y="753" class="mono" font-size="28" fill="#8f99a8">./profile --mode=operator --proof=on</text>
+  <rect x="693" y="724" width="18" height="35" fill="#55f0d0"/>
+  <text x="1469" y="753" class="sans" font-size="29" fill="#7f8998">vNEXT / NO BADGE WALLS</text>
+</svg>
