@@ -1,0 +1,55 @@
+{
+  "username": "bitreonx",
+  "display_name": "Bitreon",
+  "headline": "Building what I envision — with code and design.",
+  "focus": [
+    "developer tools",
+    "agent infrastructure",
+    "product systems"
+  ],
+  "featured_repositories": [
+    "Mnestis",
+    "Rune"
+  ],
+  "principles": [
+    [
+      "Proof over claims",
+      "Ship the artifact. Measure the behavior. Keep the receipt."
+    ],
+    [
+      "Complexity must earn itself",
+      "Prefer the smallest system that preserves the important truth."
+    ],
+    [
+      "Interfaces are part of the system",
+      "Clarity, latency and interaction quality are engineering constraints."
+    ],
+    [
+      "AI should increase rigor",
+      "Use agents to widen exploration and verification, not to manufacture certainty."
+    ]
+  ],
+  "links": [
+    [
+      "GitHub",
+      "https://github.com/bitreonx"
+    ],
+    [
+      "Repositories",
+      "https://github.com/bitreonx?tab=repositories"
+    ],
+    [
+      "X",
+      "https://x.com/BitreonX"
+    ],
+    [
+      "YouTube",
+      "https://www.youtube.com/@Bitreon"
+    ],
+    [
+      "Instagram",
+      "https://www.instagram.com/bitreonX"
+    ]
+  ],
+  "intro": "I build developer tools and agent infrastructure with product-grade attention to evidence, interaction, and systems design."
+}

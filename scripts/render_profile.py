@@ -1,68 +1,73 @@
 #!/usr/bin/env python3
-"""Render the public-event signal used by the @bitreonx GitHub profile.
-
-Data boundary:
-- https://api.github.com/users/{username}/events/public
-
-No private contribution calendar is queried.
-No third-party profile-card service is used.
-"""
-
 from __future__ import annotations
 
 import argparse
 import datetime as dt
 import json
-import urllib.request
-from collections import Counter, defaultdict
+import re
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable
 
-BG = "#070A0F"
-SURFACE = "#0B1118"
-SURFACE_2 = "#0E1620"
-GRID = "#17222D"
-MUTED = "#7F8B99"
-TEXT = "#E6EDF3"
-GREEN = "#72F1B8"
-CYAN = "#86D7FF"
-VIOLET = "#B794F4"
-AMBER = "#F6C177"
-RED = "#FF7B72"
-FONT = 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace'
+try:
+    from scripts.github_data import (
+        fetch_profile_data,
+        load_profile_config,
+        normalize_graphql_payload,
+        token_from_environment,
+    )
+except ModuleNotFoundError:  # direct execution from scripts/
+    from github_data import (  # type: ignore
+        fetch_profile_data,
+        load_profile_config,
+        normalize_graphql_payload,
+        token_from_environment,
+    )
 
-EVENT_WEIGHTS = {
-    "PushEvent": 3,
-    "PullRequestEvent": 2,
-    "PullRequestReviewEvent": 1,
-    "IssuesEvent": 1,
-    "IssueCommentEvent": 1,
-    "CreateEvent": 1,
-    "ReleaseEvent": 3,
+
+@dataclass(frozen=True)
+class Theme:
+    name: str
+    bg: str
+    surface: str
+    text: str
+    muted: str
+    quiet: str
+    border: str
+    accent: str
+    accent_soft: str
+    contribution_levels: tuple[str, str, str, str, str]
+
+
+THEMES = {
+    "light": Theme(
+        name="light",
+        bg="#F6F6F3",
+        surface="#FFFFFF",
+        text="#151619",
+        muted="#696D74",
+        quiet="#9A9DA3",
+        border="#DADAD4",
+        accent="#5957E8",
+        accent_soft="#ECEBFF",
+        contribution_levels=("#E8E8E3", "#D9D8FF", "#B7B5FF", "#8582F4", "#5957E8"),
+    ),
+    "dark": Theme(
+        name="dark",
+        bg="#0C0D0F",
+        surface="#111316",
+        text="#F3F3EE",
+        muted="#A0A3AA",
+        quiet="#6F737A",
+        border="#2A2C31",
+        accent="#AAA8FF",
+        accent_soft="#1B1B31",
+        contribution_levels=("#202226", "#313151", "#4D4B7A", "#7774B8", "#AAA8FF"),
+    ),
 }
 
-
-def request_bytes(url: str, user_agent: str) -> bytes:
-    request = urllib.request.Request(
-        url,
-        headers={
-            "Accept": "application/vnd.github+json",
-            "User-Agent": user_agent,
-        },
-    )
-    with urllib.request.urlopen(request, timeout=25) as response:
-        return response.read()
-
-
-def fetch_public_events(username: str) -> list[dict]:
-    events: list[dict] = []
-    for page in range(1, 4):
-        url = f"https://api.github.com/users/{username}/events/public?per_page=100&page={page}"
-        batch = json.loads(request_bytes(url, f"{username}-profile-renderer").decode("utf-8"))
-        if not batch:
-            break
-        events.extend(batch)
-    return events
+SANS = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, Arial, sans-serif"
+MONO = "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace"
 
 
 def esc(value: object) -> str:
@@ -72,169 +77,344 @@ def esc(value: object) -> str:
         .replace("<", "&lt;")
         .replace(">", "&gt;")
         .replace('"', "&quot;")
+        .replace("'", "&apos;")
     )
 
 
-def aligned_start(today: dt.date) -> dt.date:
-    return today - dt.timedelta(days=today.weekday() + 12 * 7)
+def _svg_open(width: int, height: int, title: str, desc: str, theme: Theme) -> str:
+    return f'''<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" viewBox="0 0 {width} {height}" role="img" aria-labelledby="title desc">
+<title id="title">{esc(title)}</title>
+<desc id="desc">{esc(desc)}</desc>
+<rect width="{width}" height="{height}" rx="24" fill="{theme.bg}"/>
+<rect x="0.5" y="0.5" width="{width - 1}" height="{height - 1}" rx="23.5" fill="none" stroke="{theme.border}"/>
+'''
 
 
-def activity(events: Iterable[dict], start: dt.date, end: dt.date):
-    score: defaultdict[dt.date, int] = defaultdict(int)
-    raw_days: Counter[dt.date] = Counter()
-    kinds: Counter[str] = Counter()
+def _text(x: float, y: float, value: object, *, size: float, fill: str, weight: int = 400,
+          family: str = SANS, anchor: str = "start", tracking: float | None = None) -> str:
+    attrs = [
+        f'x="{x}"', f'y="{y}"', f'fill="{fill}"', f'font-family="{family}"',
+        f'font-size="{size}"', f'font-weight="{weight}"', f'text-anchor="{anchor}"',
+    ]
+    if tracking is not None:
+        attrs.append(f'letter-spacing="{tracking}"')
+    return f'<text {" ".join(attrs)}>{esc(value)}</text>'
 
-    for event in events:
-        created_at = event.get("created_at")
-        if not created_at:
+
+def _wrap(text: str, max_chars: int, max_lines: int) -> list[str]:
+    words = (text or "").split()
+    if not words:
+        return [""]
+    lines: list[str] = []
+    current = ""
+    for word in words:
+        proposal = word if not current else f"{current} {word}"
+        if len(proposal) <= max_chars:
+            current = proposal
+            continue
+        if current:
+            lines.append(current)
+        current = word
+        if len(lines) == max_lines - 1:
+            break
+    if current and len(lines) < max_lines:
+        lines.append(current)
+
+    consumed = " ".join(lines)
+    if len(consumed) < len(text.strip()) and lines:
+        last = lines[-1]
+        if len(last) >= max_chars - 1:
+            last = last[: max_chars - 2].rstrip()
+        lines[-1] = last.rstrip(" .") + "…"
+    return lines[:max_lines]
+
+
+def _calendar_stats(data: dict) -> dict:
+    days = [day for week in data["calendar"]["weeks"] for day in week["days"]]
+    active = [day for day in days if day["count"] > 0]
+    peak = max((day["count"] for day in active), default=0)
+    longest = 0
+    running = 0
+    for day in days:
+        if day["count"] > 0:
+            running += 1
+            longest = max(longest, running)
+        else:
+            running = 0
+    return {"active_days": len(active), "peak": peak, "longest_streak": longest}
+
+
+def render_hero(data: dict, config: dict, theme: Theme) -> str:
+    profile = data["profile"]
+    focus = config.get("focus") or []
+    width, height = 1200, 360
+    parts = [_svg_open(width, height, f"{profile['name']} profile", "Editorial GitHub profile header with live account metrics.", theme)]
+
+    parts.append(_text(54, 55, "BITREON / SOFTWARE & SYSTEMS", size=12, fill=theme.muted, weight=650, family=MONO, tracking=1.8))
+    parts.append(f'<circle cx="1135" cy="51" r="5" fill="{theme.accent}"/>')
+    parts.append(_text(1117, 55, "GITHUB", size=11, fill=theme.muted, weight=600, family=MONO, anchor="end", tracking=1.4))
+
+    parts.append(_text(54, 144, "BITREON", size=72, fill=theme.text, weight=760, tracking=-2.4))
+    parts.append(_text(58, 188, config.get("headline") or profile.get("bio") or "", size=20, fill=theme.muted, weight=430))
+
+    chip_x = 58
+    for label in focus[:3]:
+        chip_w = max(128, 22 + len(label) * 8.4)
+        parts.append(f'<rect x="{chip_x}" y="225" width="{chip_w:.0f}" height="34" rx="17" fill="{theme.surface}" stroke="{theme.border}"/>')
+        parts.append(_text(chip_x + chip_w / 2, 247, label, size=11.5, fill=theme.text, weight=600, family=MONO, anchor="middle"))
+        chip_x += chip_w + 10
+
+    parts.append(f'<path d="M58 300H1142" stroke="{theme.border}"/>')
+    metrics = [
+        ("FOLLOWERS", profile["followers"]),
+        ("PUBLIC REPOS", profile["public_repositories"]),
+        ("REPO STARS", profile["stars"]),
+    ]
+    for idx, (label, value) in enumerate(metrics):
+        x = 58 + idx * 212
+        parts.append(_text(x, 327, label, size=10.5, fill=theme.quiet, weight=650, family=MONO, tracking=1.1))
+        parts.append(_text(x + 124, 329, value, size=18, fill=theme.text, weight=700, family=MONO, anchor="end"))
+
+    parts.append(_text(1142, 329, f"@{profile['login']}", size=12, fill=theme.accent, weight=650, family=MONO, anchor="end"))
+    parts.append("</svg>")
+    return "".join(parts)
+
+
+def _level_index(level: str) -> int:
+    return {
+        "NONE": 0,
+        "FIRST_QUARTILE": 1,
+        "SECOND_QUARTILE": 2,
+        "THIRD_QUARTILE": 3,
+        "FOURTH_QUARTILE": 4,
+    }.get(level, 0)
+
+
+def render_contributions(data: dict, theme: Theme) -> str:
+    calendar = data["calendar"]
+    stats = _calendar_stats(data)
+    width, height = 1200, 370
+    parts = [_svg_open(width, height, "GitHub contribution record", "Real contribution calendar returned by GitHub for this profile.", theme)]
+
+    parts.append(_text(52, 54, "CONTRIBUTION RECORD", size=12, fill=theme.muted, weight=650, family=MONO, tracking=1.7))
+    parts.append(_text(52, 101, calendar["total"], size=42, fill=theme.text, weight=760, family=MONO, tracking=-1.5))
+    parts.append(_text(52, 126, "GitHub contributions", size=13, fill=theme.muted, weight=500))
+
+    metric_rows = [
+        ("ACTIVE DAYS", stats["active_days"]),
+        ("PEAK DAY", stats["peak"]),
+        ("LONGEST RUN", f"{stats['longest_streak']}d"),
+    ]
+    for i, (label, value) in enumerate(metric_rows):
+        y = 180 + i * 45
+        parts.append(_text(52, y, label, size=10.5, fill=theme.quiet, weight=650, family=MONO, tracking=1.0))
+        parts.append(_text(220, y + 1, value, size=14, fill=theme.text, weight=680, family=MONO, anchor="end"))
+
+    grid_x, grid_y = 330, 105
+    cell, gap = 12, 4
+    weeks = calendar["weeks"]
+    for week_index, week in enumerate(weeks):
+        x = grid_x + week_index * (cell + gap)
+        parts.append(f'<g data-week="{week_index}">')
+        for day_index, day in enumerate(week["days"]):
+            y = grid_y + day_index * (cell + gap)
+            level = _level_index(day["level"])
+            color = theme.contribution_levels[level]
+            count = day["count"]
+            noun = "contribution" if count == 1 else "contributions"
+            parts.append(
+                f'<rect x="{x}" y="{y}" width="{cell}" height="{cell}" rx="3" fill="{color}">'
+                f'<title>{esc(day["date"])} · {count} {noun}</title></rect>'
+            )
+        parts.append("</g>")
+
+    month_positions: list[tuple[int, str]] = []
+    last_month = None
+    for i, week in enumerate(weeks):
+        if not week["days"]:
             continue
         try:
-            day = dt.datetime.fromisoformat(created_at.replace("Z", "+00:00")).date()
+            date = dt.date.fromisoformat(week["days"][0]["date"])
         except ValueError:
             continue
-        if not start <= day <= end:
+        key = (date.year, date.month)
+        if key != last_month:
+            month_positions.append((i, date.strftime("%b").upper()))
+            last_month = key
+    last_month_x = -10_000
+    for week_index, label in month_positions:
+        x = grid_x + week_index * (cell + gap)
+        if x < 1110 and x - last_month_x >= 40:
+            parts.append(_text(x, 83, label, size=9.5, fill=theme.quiet, weight=650, family=MONO, tracking=0.8))
+            last_month_x = x
+
+    legend_x = 945
+    parts.append(_text(legend_x - 58, 326, "LESS", size=9.5, fill=theme.quiet, weight=600, family=MONO, anchor="end", tracking=0.7))
+    for i, color in enumerate(theme.contribution_levels):
+        parts.append(f'<rect x="{legend_x + i * 20}" y="316" width="12" height="12" rx="3" fill="{color}"/>')
+    parts.append(_text(legend_x + 111, 326, "MORE", size=9.5, fill=theme.quiet, weight=600, family=MONO, tracking=0.7))
+    parts.append(_text(52, 336, "Exact daily counts · GitHub contribution calendar", size=10.5, fill=theme.quiet, weight=500, family=MONO))
+
+    parts.append("</svg>")
+    return "".join(parts)
+
+
+def _format_updated(value: str) -> str:
+    if not value:
+        return "metadata unavailable"
+    try:
+        parsed = dt.datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return value[:10]
+    return parsed.strftime("%b %d, %Y").replace(" 0", " ")
+
+
+def render_project_card(repo: dict, theme: Theme) -> str:
+    width, height = 1200, 220
+    available = repo.get("available", True)
+    title = repo.get("name") or "Repository"
+    parts = [_svg_open(width, height, f"{title} repository", f"GitHub repository metadata for {title}.", theme)]
+
+    parts.append(_text(40, 42, "SELECTED WORK", size=10.5, fill=theme.muted, weight=650, family=MONO, tracking=1.5))
+    status = "GITHUB / PUBLIC" if available else "METADATA UNAVAILABLE"
+    parts.append(_text(1160, 42, status, size=9.5, fill=theme.quiet, weight=650, family=MONO, anchor="end", tracking=1.0))
+
+    parts.append(_text(40, 92, title, size=34, fill=theme.text, weight=740, tracking=-0.9))
+    description_lines = _wrap(repo.get("description") or "", 82, 2)
+    for i, line in enumerate(description_lines):
+        parts.append(_text(40, 126 + i * 22, line, size=14.5, fill=theme.muted, weight=430))
+
+    parts.append(f'<path d="M860 64V166" stroke="{theme.border}"/>')
+    language = repo.get("language") or "—"
+    parts.append(f'<circle cx="46" cy="180" r="5" fill="{repo.get("language_color") or theme.quiet}"/>')
+    parts.append(_text(60, 184, language, size=11.5, fill=theme.text, weight=620, family=MONO))
+    parts.append(_text(240, 184, f"UPDATED {_format_updated(repo.get('updated_at') or '').upper()}", size=10, fill=theme.quiet, weight=620, family=MONO, tracking=0.7))
+
+    parts.append(_text(900, 93, "STARS", size=9.5, fill=theme.quiet, weight=650, family=MONO, tracking=1.0))
+    parts.append(_text(900, 122, repo.get("stars", 0), size=22, fill=theme.text, weight=720, family=MONO))
+    parts.append(_text(1010, 93, "FORKS", size=9.5, fill=theme.quiet, weight=650, family=MONO, tracking=1.0))
+    parts.append(_text(1010, 122, repo.get("forks", 0), size=22, fill=theme.text, weight=720, family=MONO))
+    parts.append(_text(1160, 184, "OPEN REPOSITORY ↗", size=10, fill=theme.accent, weight=700, family=MONO, anchor="end", tracking=0.8))
+
+    parts.append("</svg>")
+    return "".join(parts)
+
+def _slug(value: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "-", value.lower()).strip("-") or "repository"
+
+
+def render_all(data: dict, config: dict, output_dir: Path) -> list[Path]:
+    output_dir.mkdir(parents=True, exist_ok=True)
+    paths: list[Path] = []
+    for theme_name in ("light", "dark"):
+        theme = THEMES[theme_name]
+        hero_path = output_dir / f"hero-{theme_name}.svg"
+        hero_path.write_text(render_hero(data, config, theme), encoding="utf-8")
+        paths.append(hero_path)
+
+        contribution_path = output_dir / f"contributions-{theme_name}.svg"
+        contribution_path.write_text(render_contributions(data, theme), encoding="utf-8")
+        paths.append(contribution_path)
+
+    for repo in data["repositories"]:
+        slug = _slug(repo["name"])
+        for theme_name in ("light", "dark"):
+            theme = THEMES[theme_name]
+            path = output_dir / f"project-{slug}-{theme_name}.svg"
+            path.write_text(render_project_card(repo, theme), encoding="utf-8")
+            paths.append(path)
+    return paths
+
+
+
+def _picture(base_name: str, alt: str) -> str:
+    return (
+        '<picture>\n'
+        f'  <source media="(prefers-color-scheme: dark)" srcset="./assets/{base_name}-dark.svg">\n'
+        f'  <source media="(prefers-color-scheme: light)" srcset="./assets/{base_name}-light.svg">\n'
+        f'  <img alt="{esc(alt)}" src="./assets/{base_name}-light.svg" width="100%">\n'
+        '</picture>'
+    )
+
+
+def render_readme(config: dict) -> str:
+    username = config["username"]
+    lines: list[str] = [
+        '<!-- Generated from profile.json by scripts/render_profile.py. Edit profile.json, not this file. -->',
+        '',
+        _picture('hero', f"{config.get('display_name') or username} — GitHub profile"),
+        '',
+        config.get('intro') or '',
+        '',
+        '## Selected work',
+        '',
+    ]
+
+    for name in config.get('featured_repositories', []):
+        slug = _slug(name)
+        repo_url = f'https://github.com/{username}/{name}'
+        lines.extend([
+            f'<a href="{esc(repo_url)}">',
+            _picture(f'project-{slug}', f'{name} — selected repository'),
+            '</a>',
+            '',
+        ])
+
+    lines.extend([
+        '## Contribution record',
+        '',
+        _picture('contributions', f'@{username} GitHub contribution record'),
+        '',
+        f'<sub>Generated from GitHub\'s own contribution calendar for <code>@{esc(username)}</code>. '
+        'Every cell preserves the exact daily contribution count returned by GitHub; no event weighting or third-party stats service.</sub>',
+        '',
+        '## How I build',
+        '',
+    ])
+
+    for principle in config.get('principles', []):
+        if not isinstance(principle, list) or len(principle) != 2:
             continue
+        title, body = principle
+        lines.append(f'- **{title}.** {body}')
 
-        kind = event.get("type", "OtherEvent")
-        kinds[kind] += 1
-        raw_days[day] += 1
+    lines.extend(['', '## Elsewhere', ''])
+    link_parts = []
+    for item in config.get('links', []):
+        if not isinstance(item, list) or len(item) != 2:
+            continue
+        label, url = item
+        link_parts.append(f'[{label}]({url})')
+    lines.append(' · '.join(link_parts))
+    lines.extend(['', '<!-- profile refreshes automatically from GitHub data -->', ''])
+    return '\n'.join(lines)
 
-        weight = EVENT_WEIGHTS.get(kind, 1)
-        if kind == "PushEvent":
-            payload = event.get("payload") or {}
-            size = payload.get("size") or 1
-            try:
-                weight = max(1, min(int(size), 5))
-            except (TypeError, ValueError):
-                weight = 1
-        score[day] += weight
-
-    return score, raw_days, kinds
-
-
-def render_signal(username: str, events: list[dict], out: Path, now: dt.datetime | None = None) -> None:
-    now = now or dt.datetime.now(dt.timezone.utc)
-    today = now.date()
-    start = aligned_start(today)
-    end = start + dt.timedelta(days=90)
-    score, raw_days, kinds = activity(events, start, end)
-
-    values = [value for value in score.values() if value > 0]
-    maximum = max(values) if values else 0
-
-    def level(value: int) -> int:
-        if value <= 0 or maximum <= 0:
-            return 0
-        ratio = value / maximum
-        if ratio <= 0.25:
-            return 1
-        if ratio <= 0.50:
-            return 2
-        if ratio <= 0.75:
-            return 3
-        return 4
-
-    colors = [SURFACE_2, "#183528", "#1E5B42", "#2F9267", GREEN]
-    cells: list[str] = []
-
-    x0, y0, dx, dy = 555, 110, 40, 37
-    for week in range(13):
-        for day_index in range(7):
-            day = start + dt.timedelta(days=week * 7 + day_index)
-            lvl = level(score.get(day, 0))
-            x = x0 + week * dx
-            y = y0 + day_index * dy
-            stroke = GRID if lvl == 0 else colors[lvl]
-            cells.append(
-                f'<rect x="{x}" y="{y}" width="26" height="26" rx="6" '
-                f'fill="{colors[lvl]}" stroke="{stroke}">'
-                f"<title>{day.isoformat()}: {raw_days.get(day, 0)} public events</title>"
-                "</rect>"
-            )
-
-    total = sum(raw_days.values())
-    active_days = sum(1 for count in raw_days.values() if count)
-    pushes = kinds.get("PushEvent", 0)
-    pull_requests = kinds.get("PullRequestEvent", 0)
-    releases = kinds.get("ReleaseEvent", 0)
-    sync = now.strftime("%Y-%m-%d %H:%M UTC")
-
-    svg = f'''<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="410" viewBox="0 0 1200 410" role="img" aria-labelledby="title desc">
-<title id="title">{esc(username)} public build pulse</title>
-<desc id="desc">Thirteen-week visualization of visible public GitHub events for {esc(username)}.</desc>
-<defs>
-  <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="{BG}"/><stop offset="1" stop-color="#091018"/></linearGradient>
-</defs>
-<style>
-.mono{{font-family:{FONT}}}
-.live{{animation:pulse 2s ease-in-out infinite}}
-@keyframes pulse{{0%,100%{{opacity:.45}}50%{{opacity:1}}}}
-@media (prefers-reduced-motion:reduce){{.live{{animation:none}}}}
-</style>
-<rect width="1200" height="410" rx="22" fill="url(#bg)"/>
-<rect x="1" y="1" width="1198" height="408" rx="21" fill="none" stroke="{GRID}"/>
-<text x="44" y="48" class="mono" font-size="13" letter-spacing="2" fill="{GREEN}">PUBLIC BUILD PULSE // 13 WEEKS</text>
-<circle cx="963" cy="43" r="4" fill="{GREEN}" class="live"/>
-<text x="1156" y="48" text-anchor="end" class="mono" font-size="11" fill="{GREEN}">LIVE // PUBLIC EVENTS ONLY</text>
-<path d="M44 66H1156" stroke="{GRID}"/>
-
-<g transform="translate(44 104)">
-  <text y="20" class="mono" font-size="12" fill="{MUTED}">visible_events</text>
-  <text x="190" y="20" class="mono" font-size="12" fill="{TEXT}">{total}</text>
-  <text y="58" class="mono" font-size="12" fill="{MUTED}">active_days</text>
-  <text x="190" y="58" class="mono" font-size="12" fill="{GREEN}">{active_days}</text>
-  <text y="96" class="mono" font-size="12" fill="{MUTED}">push_events</text>
-  <text x="190" y="96" class="mono" font-size="12" fill="{TEXT}">{pushes}</text>
-  <text y="134" class="mono" font-size="12" fill="{MUTED}">pull_requests</text>
-  <text x="190" y="134" class="mono" font-size="12" fill="{CYAN}">{pull_requests}</text>
-  <text y="172" class="mono" font-size="12" fill="{MUTED}">releases</text>
-  <text x="190" y="172" class="mono" font-size="12" fill="{VIOLET}">{releases}</text>
-  <path d="M0 198H430" stroke="{GRID}"/>
-  <text y="225" class="mono" font-size="10.5" fill="{MUTED}">signal ≠ contribution total // privacy boundary: public events</text>
-</g>
-
-{''.join(cells)}
-
-<text x="555" y="385" class="mono" font-size="10.5" fill="{MUTED}">quiet</text>
-<g transform="translate(605 373)">
-  <rect width="13" height="13" rx="3" fill="{SURFACE_2}"/>
-  <rect x="19" width="13" height="13" rx="3" fill="#183528"/>
-  <rect x="38" width="13" height="13" rx="3" fill="#1E5B42"/>
-  <rect x="57" width="13" height="13" rx="3" fill="#2F9267"/>
-  <rect x="76" width="13" height="13" rx="3" fill="{GREEN}"/>
-</g>
-<text x="700" y="385" class="mono" font-size="10.5" fill="{MUTED}">loud</text>
-<text x="1156" y="385" text-anchor="end" class="mono" font-size="10.5" fill="{MUTED}">sync: {esc(sync)}</text>
-</svg>'''
-    out.write_text(svg, encoding="utf-8")
-
+def _load_data_json(path: Path, config: dict) -> dict:
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    if "profile" in payload and "calendar" in payload:
+        return payload
+    return normalize_graphql_payload(payload, config)
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--username", default="bitreonx")
-    parser.add_argument("--output", default="assets/signal.svg")
-    parser.add_argument("--events-json")
-    parser.add_argument("--now", help="ISO timestamp for deterministic testing")
+    parser = argparse.ArgumentParser(description="Render the @bitreonx GitHub profile assets from GitHub data.")
+    parser.add_argument("--username")
+    parser.add_argument("--config", default="profile.json")
+    parser.add_argument("--output-dir", default="assets")
+    parser.add_argument("--readme", default="README.md")
+    parser.add_argument("--data-json", help="Offline GraphQL payload or normalized data for deterministic rendering")
     args = parser.parse_args()
 
-    if args.events_json:
-        events = json.loads(Path(args.events_json).read_text(encoding="utf-8"))
+    config = load_profile_config(Path(args.config))
+    username = args.username or config["username"]
+    if args.data_json:
+        data = _load_data_json(Path(args.data_json), config)
     else:
-        events = fetch_public_events(args.username)
+        data = fetch_profile_data(username, token_from_environment(), config)
 
-    now = (
-        dt.datetime.fromisoformat(args.now.replace("Z", "+00:00"))
-        if args.now
-        else dt.datetime.now(dt.timezone.utc)
-    )
-    if now.tzinfo is None:
-        now = now.replace(tzinfo=dt.timezone.utc)
-
-    output = Path(args.output)
-    output.parent.mkdir(parents=True, exist_ok=True)
-    render_signal(args.username, events, output, now=now)
-    print(f"rendered {output} for @{args.username} from {len(events)} public events")
+    paths = render_all(data, config, Path(args.output_dir))
+    Path(args.readme).write_text(render_readme(config), encoding="utf-8")
+    print(f"rendered {len(paths)} profile assets and {args.readme} for @{username}")
     return 0
 
 
