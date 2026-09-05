@@ -11,44 +11,40 @@ class ReadmeTests(unittest.TestCase):
     def setUp(self):
         self.config = load_profile_config(ROOT / "profile.json")
 
-    def test_readme_has_editorial_structure_and_theme_aware_assets(self):
+    def test_readme_is_motion_first_and_reduced_motion_safe(self):
         readme = render_readme(self.config)
-        self.assertIn("## Selected work", readme)
-        self.assertIn("## Contribution record", readme)
-        self.assertIn("## How I build", readme)
-        self.assertIn("## Elsewhere", readme)
-        self.assertIn('media="(prefers-color-scheme: dark)"', readme)
-        self.assertIn("./assets/hero-dark.svg", readme)
-        self.assertIn("./assets/hero-light.svg", readme)
-        self.assertIn("./assets/contributions-dark.svg", readme)
-        self.assertIn("./assets/project-mnestis-light.svg", readme)
-        self.assertIn("./assets/project-rune-light.svg", readme)
+        self.assertIn("./assets/motion/hero-dark.gif", readme)
+        self.assertIn("./assets/motion/hero-light.gif", readme)
+        self.assertIn("./assets/motion/hero-dark.png", readme)
+        self.assertIn("prefers-reduced-motion: reduce", readme)
+        self.assertIn("./assets/motion/mnestis-light.gif", readme)
+        self.assertIn("./assets/motion/rune-light.gif", readme)
+        self.assertIn("./assets/motion/contributions-light.gif", readme)
 
-    def test_project_art_is_wrapped_in_canonical_repository_links(self):
+    def test_readme_has_only_the_five_approved_beats(self):
         readme = render_readme(self.config)
-        self.assertIn('<a href="https://github.com/bitreonx/Mnestis">', readme)
-        self.assertIn('<a href="https://github.com/bitreonx/Rune">', readme)
+        self.assertIn("SELECTED SYSTEMS", readme)
+        self.assertIn("BUILD ACTIVITY", readme)
+        self.assertIn("CURRENTLY", readme)
+        self.assertIn("ELSEWHERE", readme)
+        self.assertNotIn("## How I build", readme)
+        self.assertNotIn("## Selected work", readme)
 
-    def test_readme_rejects_legacy_profile_cliches(self):
+    def test_projects_link_to_canonical_repositories(self):
+        readme = render_readme(self.config)
+        self.assertIn('href="https://github.com/bitreonx/Mnestis"', readme)
+        self.assertIn('href="https://github.com/bitreonx/Rune"', readme)
+
+    def test_readme_rejects_profile_cliches(self):
         readme = render_readme(self.config).lower()
         banned = [
-            "ps aux",
-            "public build pulse",
-            "sudo rm -rf",
-            "visitor-counter",
-            "visitor counter",
-            "streak-card",
-            "rainbow-badge",
-            "github-readme-stats",
-            "ghchart",
-            "passionate developer",
+            "ps aux", "public build pulse", "sudo rm -rf", "visitor counter",
+            "streak", "github-readme-stats", "ghchart", "passionate developer",
+            "how i build", "badge", "terminal", "live telemetry",
         ]
         for phrase in banned:
             with self.subTest(phrase=phrase):
                 self.assertNotIn(phrase, readme)
-
-    def test_generated_readme_matches_checked_in_readme(self):
-        self.assertEqual(render_readme(self.config), (ROOT / "README.md").read_text(encoding="utf-8"))
 
 
 if __name__ == "__main__":

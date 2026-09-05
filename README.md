@@ -1,50 +1,50 @@
-<!-- Generated from profile.json by scripts/render_profile.py. Edit profile.json, not this file. -->
+<!-- Generated from profile.json + live GitHub data. Edit profile.json, not README.md. -->
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="./assets/hero-dark.svg">
-  <source media="(prefers-color-scheme: light)" srcset="./assets/hero-light.svg">
-  <img alt="Bitreon — GitHub profile" src="./assets/hero-light.svg" width="100%">
+  <source media="(prefers-reduced-motion: reduce) and (prefers-color-scheme: dark)" srcset="./assets/motion/hero-dark.png">
+  <source media="(prefers-reduced-motion: reduce)" srcset="./assets/motion/hero-light.png">
+  <source media="(prefers-color-scheme: dark)" srcset="./assets/motion/hero-dark.gif">
+  <source media="(prefers-color-scheme: light)" srcset="./assets/motion/hero-light.gif">
+  <img alt="Bitreon — motion GitHub profile" src="./assets/motion/hero-light.gif" width="100%">
 </picture>
 
-I build developer tools and agent infrastructure with product-grade attention to evidence, interaction, and systems design.
-
-## Selected work
+<p><sub>SELECTED SYSTEMS</sub></p>
 
 <a href="https://github.com/bitreonx/Mnestis">
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="./assets/project-mnestis-dark.svg">
-  <source media="(prefers-color-scheme: light)" srcset="./assets/project-mnestis-light.svg">
-  <img alt="Mnestis — selected repository" src="./assets/project-mnestis-light.svg" width="100%">
+  <source media="(prefers-reduced-motion: reduce) and (prefers-color-scheme: dark)" srcset="./assets/motion/mnestis-dark.png">
+  <source media="(prefers-reduced-motion: reduce)" srcset="./assets/motion/mnestis-light.png">
+  <source media="(prefers-color-scheme: dark)" srcset="./assets/motion/mnestis-dark.gif">
+  <source media="(prefers-color-scheme: light)" srcset="./assets/motion/mnestis-light.gif">
+  <img alt="Mnestis — animated system overview backed by GitHub repository metadata" src="./assets/motion/mnestis-light.gif" width="100%">
 </picture>
 </a>
 
 <a href="https://github.com/bitreonx/Rune">
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="./assets/project-rune-dark.svg">
-  <source media="(prefers-color-scheme: light)" srcset="./assets/project-rune-light.svg">
-  <img alt="Rune — selected repository" src="./assets/project-rune-light.svg" width="100%">
+  <source media="(prefers-reduced-motion: reduce) and (prefers-color-scheme: dark)" srcset="./assets/motion/rune-dark.png">
+  <source media="(prefers-reduced-motion: reduce)" srcset="./assets/motion/rune-light.png">
+  <source media="(prefers-color-scheme: dark)" srcset="./assets/motion/rune-dark.gif">
+  <source media="(prefers-color-scheme: light)" srcset="./assets/motion/rune-light.gif">
+  <img alt="Rune — animated system overview backed by GitHub repository metadata" src="./assets/motion/rune-light.gif" width="100%">
 </picture>
 </a>
 
-## Contribution record
+<p><sub>BUILD ACTIVITY</sub></p>
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="./assets/contributions-dark.svg">
-  <source media="(prefers-color-scheme: light)" srcset="./assets/contributions-light.svg">
-  <img alt="@bitreonx GitHub contribution record" src="./assets/contributions-light.svg" width="100%">
+  <source media="(prefers-reduced-motion: reduce) and (prefers-color-scheme: dark)" srcset="./assets/motion/contributions-dark.png">
+  <source media="(prefers-reduced-motion: reduce)" srcset="./assets/motion/contributions-light.png">
+  <source media="(prefers-color-scheme: dark)" srcset="./assets/motion/contributions-dark.gif">
+  <source media="(prefers-color-scheme: light)" srcset="./assets/motion/contributions-light.gif">
+  <img alt="@bitreonx — real GitHub contribution calendar animation" src="./assets/motion/contributions-light.gif" width="100%">
 </picture>
 
-<sub>Generated from GitHub's own contribution calendar for <code>@bitreonx</code>. Every cell preserves the exact daily contribution count returned by GitHub; no event weighting or third-party stats service.</sub>
+<p><sub>DATA SOURCE</sub><br><code>GitHub GraphQL → contributionsCollection.contributionCalendar</code><br><sub>Every illuminated day comes from the exact contribution count returned for <code>@bitreonx</code>. No synthetic events.</sub></p>
 
-## How I build
+<p><sub>CURRENTLY</sub><br>Building Mnestis and Rune — developer systems for code intelligence and agent execution.</p>
 
-- **Proof over claims.** Ship the artifact. Measure the behavior. Keep the receipt.
-- **Complexity must earn itself.** Prefer the smallest system that preserves the important truth.
-- **Interfaces are part of the system.** Clarity, latency and interaction quality are engineering constraints.
-- **AI should increase rigor.** Use agents to widen exploration and verification, not to manufacture certainty.
+<p><sub>ELSEWHERE</sub><br>
+<a href="https://github.com/bitreonx">GitHub</a> · <a href="https://github.com/bitreonx?tab=repositories">Repositories</a> · <a href="https://x.com/BitreonX">X</a> · <a href="https://www.youtube.com/@Bitreon">YouTube</a> · <a href="https://www.instagram.com/bitreonX">Instagram</a></p>
 
-## Elsewhere
-
-[GitHub](https://github.com/bitreonx) · [Repositories](https://github.com/bitreonx?tab=repositories) · [X](https://x.com/BitreonX) · [YouTube](https://www.youtube.com/@Bitreon) · [Instagram](https://www.instagram.com/bitreonX)
-
-<!-- profile refreshes automatically from GitHub data -->
+<!-- motion assets refresh automatically from GitHub data -->
