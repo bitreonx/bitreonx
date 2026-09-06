@@ -1,0 +1,68 @@
+name: Refresh profile
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 3 * * *"
+  push:
+    branches:
+      - main
+    paths:
+      - "profile.json"
+      - "requirements.txt"
+      - "scripts/**"
+      - "tests/**"
+      - ".github/workflows/refresh-profile.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: profile-refresh
+  cancel-in-progress: true
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      PROFILE_TOKEN: ${{ secrets.PROFILE_TOKEN }}
+    steps:
+      - name: Check out profile repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install motion renderer
+        run: pip install -r requirements.txt
+
+      - name: Verify profile generator
+        run: python -m unittest discover -s tests -v
+
+      - name: Require authenticated contribution token
+        shell: bash
+        run: |
+          if [ -z "${PROFILE_TOKEN:-}" ]; then
+            echo "::error::PROFILE_TOKEN is required. Add a classic GitHub personal access token with read:user as an Actions repository secret."
+            exit 1
+          fi
+
+      - name: Refresh GitHub-backed motion profile
+        run: python scripts/render_profile.py --username bitreonx --config profile.json
+
+      - name: Commit refreshed assets when data changed
+        shell: bash
+        run: |
+          if git diff --quiet -- README.md assets/motion; then
+            echo "Profile is already current."
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add README.md assets/motion
+          git commit -m "chore: refresh motion profile"
+          git push
