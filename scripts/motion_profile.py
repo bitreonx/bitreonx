@@ -51,7 +51,7 @@ THEMES = {
 }
 
 W = 1200
-FPS_MS = 140
+FPS_MS = 100
 
 
 def _rgb(value: str) -> tuple[int, int, int]:
@@ -188,6 +188,94 @@ def _active_days(data: dict) -> list[dict]:
     return sorted(days, key=lambda day: day.get("date", ""))
 
 
+
+def _weekly_totals(weeks: list[dict]) -> list[dict]:
+    totals: list[dict] = []
+    for index, week in enumerate(weeks):
+        days = week.get("days", [])
+        count = sum(int(day.get("count", 0)) for day in days)
+        first_day = week.get("first_day") or (days[0].get("date", "") if days else "")
+        last_day = days[-1].get("date", "") if days else first_day
+        totals.append({"index": index, "first_day": first_day, "last_day": last_day, "count": count})
+    return totals
+
+
+def _calendar_month_labels(calendar: dict) -> list[tuple[int, str]]:
+    weeks = calendar.get("weeks") or []
+    months = calendar.get("months") or []
+    labels: list[tuple[int, str]] = []
+
+    for month in months:
+        first_day = month.get("first_day", "")
+        name = (month.get("name") or "")[:3].upper()
+        year = int(month.get("year") or 0)
+        target_index = None
+
+        # Prefer the exact GitHub firstDay anchor when it falls inside the returned calendar.
+        for wi, week in enumerate(weeks):
+            if any(day.get("date") == first_day for day in week.get("days", [])):
+                target_index = wi
+                break
+
+        # The first calendar month can begin before the 53-week window. Anchor it to
+        # the first returned day that belongs to GitHub's canonical month instead.
+        if target_index is None:
+            for wi, week in enumerate(weeks):
+                for day in week.get("days", []):
+                    try:
+                        parsed = dt.date.fromisoformat(day.get("date", ""))
+                    except ValueError:
+                        continue
+                    if parsed.year == year and parsed.strftime("%B") == month.get("name"):
+                        target_index = wi
+                        break
+                if target_index is not None:
+                    break
+
+        if target_index is not None and name:
+            # GitHub can return a one-day partial month at the left edge. If two
+            # month anchors land in the same visual week, prefer the later month
+            # so labels never collide (for example AUG/SEP on the same column).
+            if labels and labels[-1][0] == target_index:
+                labels[-1] = (target_index, name)
+            else:
+                labels.append((target_index, name))
+
+    return labels
+
+
+def _calendar_summary(weeks: list[dict]) -> dict:
+    weekly = _weekly_totals(weeks)
+    month_counts: dict[str, int] = {}
+    active_days = 0
+    for week in weeks:
+        for day in week.get("days", []):
+            count = int(day.get("count", 0))
+            if count > 0:
+                active_days += 1
+            value = day.get("date", "")
+            if len(value) >= 7:
+                month_counts[value[:7]] = month_counts.get(value[:7], 0) + count
+
+    best_week = max(weekly, key=lambda item: item["count"], default={"count": 0, "first_day": "", "last_day": ""})
+    best_month_key, best_month_count = max(month_counts.items(), key=lambda item: item[1], default=("", 0))
+    best_month_label = "—"
+    if best_month_key:
+        try:
+            best_month_label = dt.datetime.strptime(best_month_key, "%Y-%m").strftime("%b %Y").upper()
+        except ValueError:
+            best_month_label = best_month_key.upper()
+
+    return {
+        "best_week_count": int(best_week.get("count", 0)),
+        "best_week_first_day": best_week.get("first_day", ""),
+        "best_week_last_day": best_week.get("last_day", ""),
+        "best_month_count": int(best_month_count),
+        "best_month_label": best_month_label,
+        "active_days": active_days,
+        "active_weeks": sum(1 for item in weekly if item["count"] > 0),
+    }
+
 def _repo_lookup(data: dict, name: str) -> dict:
     for repo in data.get("repositories", []):
         if repo.get("name", "").lower() == name.lower():
@@ -209,7 +297,7 @@ def _draw_footer_rule(frame: Image.Image, theme: MotionTheme, y: int, alpha: int
     _line(frame, [(46, y), (1154, y)], theme.border, alpha, 1)
 
 
-def render_hero_frames(data: dict, config: dict, theme: MotionTheme, frame_count: int = 40) -> list[Image.Image]:
+def render_hero_frames(data: dict, config: dict, theme: MotionTheme, frame_count: int = 36) -> list[Image.Image]:
     height = 430
     days = _active_days(data)
     nodes = []
@@ -402,15 +490,25 @@ def render_rune_frames(data: dict, config: dict, theme: MotionTheme, frame_count
     return frames
 
 
-def render_contribution_frames(data: dict, config: dict, theme: MotionTheme, frame_count: int = 48) -> list[Image.Image]:
-    height = 360
+def render_contribution_frames(data: dict, config: dict, theme: MotionTheme, frame_count: int = 42) -> list[Image.Image]:
+    height = 448
     weeks = data["calendar"]["weeks"]
     all_days = [day for week in weeks for day in week["days"]]
     max_count = max((int(day.get("count", 0)) for day in all_days), default=1) or 1
     peak = max(all_days, key=lambda day: int(day.get("count", 0)), default={"count": 0, "date": ""})
+    weekly = _weekly_totals(weeks)
+    month_labels = _calendar_month_labels(data["calendar"])
+    summary = _calendar_summary(weeks)
+    max_week = max((item["count"] for item in weekly), default=1) or 1
+
     frames: list[Image.Image] = []
-    grid_x, grid_y = 52, 124
-    cell, gap = 14, 3
+    grid_x, grid_y = 74, 150
+    cell, gap = 16, 4
+    step = cell + gap
+    grid_right = grid_x + (max(1, len(weeks)) - 1) * step + cell
+    grid_bottom = grid_y + 6 * step + cell
+    weekly_base_y = 338
+    weekly_max_h = 28
 
     for i in range(frame_count):
         t = i / (frame_count - 1)
@@ -418,59 +516,103 @@ def render_contribution_frames(data: dict, config: dict, theme: MotionTheme, fra
         frame = _new_frame(height, theme)
         reveal = _window(t, 0.04, 0.20) * fade
 
-        _alpha_text(frame, (48, 34), "BUILD ACTIVITY / GITHUB", size=10, color=theme.quiet, alpha=int(210 * fade), bold=True, mono=True, tracking=1.5)
+        _alpha_text(frame, (48, 30), "BUILD ACTIVITY / GITHUB", size=10, color=theme.quiet, alpha=int(210 * fade), bold=True, mono=True, tracking=1.5)
         resolved = _window(t, 0.55, 0.74)
         total_display = round(data["calendar"]["total"] * resolved)
-        _alpha_text(frame, (48, 70), f"{total_display}", size=38, color=theme.fg, alpha=int(255 * reveal), bold=True)
-        _alpha_text(frame, (128, 80), "CONTRIBUTIONS / LAST 12 MONTHS", size=10, color=theme.muted, alpha=int(210 * reveal), bold=True, mono=True, tracking=0.8)
+        _alpha_text(frame, (48, 64), f"{total_display}", size=38, color=theme.fg, alpha=int(255 * reveal), bold=True)
+        _alpha_text(frame, (128, 75), "CONTRIBUTIONS / LAST 12 MONTHS", size=10, color=theme.muted, alpha=int(210 * reveal), bold=True, mono=True, tracking=0.8)
+
         peak_label = peak.get("date", "")
         if peak_label:
             try:
                 peak_label = dt.date.fromisoformat(peak_label).strftime("%b %d").upper()
             except ValueError:
                 pass
-        _alpha_text(frame, (1152, 80), f"PEAK {peak.get('count', 0)} / {peak_label}", size=9, color=theme.quiet, alpha=int(205 * reveal), bold=True, mono=True, anchor="ra", tracking=0.6)
+        _alpha_text(frame, (1152, 75), f"PEAK DAY {peak.get('count', 0)} / {peak_label}", size=9, color=theme.quiet, alpha=int(205 * reveal), bold=True, mono=True, anchor="ra", tracking=0.45)
 
-        # weekday labels only where useful
-        _alpha_text(frame, (14, grid_y + 1 * (cell + gap) - 4), "M", size=8, color=theme.quiet, alpha=int(155 * reveal), bold=True, mono=True)
-        _alpha_text(frame, (14, grid_y + 3 * (cell + gap) - 4), "W", size=8, color=theme.quiet, alpha=int(155 * reveal), bold=True, mono=True)
-        _alpha_text(frame, (14, grid_y + 5 * (cell + gap) - 4), "F", size=8, color=theme.quiet, alpha=int(155 * reveal), bold=True, mono=True)
+        # Month anchors use the first real day-of-month returned by GitHub.
+        month_alpha = _window(t, 0.10, 0.30) * fade
+        for wi, label in month_labels:
+            x = grid_x + wi * step
+            if x > grid_right - 6:
+                continue
+            _alpha_text(frame, (x, 118), label, size=8, color=theme.quiet, alpha=int(190 * month_alpha), bold=True, mono=True, tracking=0.5)
+
+        # Familiar GitHub rhythm, but with full labels rather than single letters.
+        _alpha_text(frame, (20, grid_y + 1 * step + 1), "MON", size=7, color=theme.quiet, alpha=int(160 * reveal), bold=True, mono=True, tracking=0.4)
+        _alpha_text(frame, (20, grid_y + 3 * step + 1), "WED", size=7, color=theme.quiet, alpha=int(160 * reveal), bold=True, mono=True, tracking=0.4)
+        _alpha_text(frame, (20, grid_y + 5 * step + 1), "FRI", size=7, color=theme.quiet, alpha=int(160 * reveal), bold=True, mono=True, tracking=0.4)
 
         weeks_revealed = _ease(max(0.0, min(1.0, (t - 0.14) / 0.48))) * max(1, len(weeks))
         for wi, week in enumerate(weeks):
-            x = grid_x + wi * (cell + gap)
+            x = grid_x + wi * step
             week_alpha = max(0.0, min(1.0, weeks_revealed - wi)) * fade
             for day in week["days"]:
                 weekday = int(day.get("weekday", 0))
-                y = grid_y + weekday * (cell + gap)
+                y = grid_y + weekday * step
                 count = int(day.get("count", 0))
                 if count <= 0:
                     color = theme.empty
                 else:
                     intensity = min(1.0, math.sqrt(count / max_count))
-                    color = _mix(theme.accent_soft, theme.accent, 0.28 + intensity * 0.72)
+                    color = _mix(theme.accent_soft, theme.accent, 0.25 + intensity * 0.75)
                     color = "#%02x%02x%02x" % color
                 layer = Image.new("RGBA", frame.size, (0, 0, 0, 0))
                 d = ImageDraw.Draw(layer)
-                d.rounded_rectangle((x, y, x + cell, y + cell), radius=3, fill=_rgba(color, int(230 * week_alpha)))
+                d.rounded_rectangle((x, y, x + cell, y + cell), radius=4, fill=_rgba(color, int(235 * week_alpha)))
                 frame.alpha_composite(layer)
 
-                # one-frame wake pulse when a week arrives; count controls radius.
                 age = weeks_revealed - wi
                 if count > 0 and 0.15 < age < 0.75:
                     pulse = 1 - abs(0.45 - age) / 0.30
                     radius = cell / 2 + 2 + min(8, math.sqrt(count)) * max(0, pulse)
-                    _circle(frame, (x + cell / 2, y + cell / 2), radius, theme.accent, int(34 * max(0, pulse) * fade), outline=theme.accent, outline_alpha=int(45 * max(0, pulse) * fade))
+                    _circle(frame, (x + cell / 2, y + cell / 2), radius, theme.accent, int(30 * max(0, pulse) * fade), outline=theme.accent, outline_alpha=int(42 * max(0, pulse) * fade))
 
-        # scan marker makes chronology legible without inventing activity
+        # Weekly volume mirrors the 53 calendar columns exactly. It is an aggregation, never synthetic activity.
+        weekly_reveal = _window(t, 0.48, 0.72) * fade
+        _alpha_text(frame, (20, weekly_base_y - 9), "WK", size=7, color=theme.quiet, alpha=int(150 * weekly_reveal), bold=True, mono=True, tracking=0.4)
+        _line(frame, [(grid_x, weekly_base_y), (grid_right, weekly_base_y)], theme.border, int(145 * weekly_reveal), 1)
+        for item in weekly:
+            wi = int(item["index"])
+            count = int(item["count"])
+            x = grid_x + wi * step + cell / 2
+            if count <= 0:
+                bar_h = 2
+                bar_color = theme.border
+                alpha = int(105 * weekly_reveal)
+            else:
+                bar_h = 4 + math.sqrt(count / max_week) * (weekly_max_h - 4)
+                bar_color = theme.accent
+                alpha = int((120 + 115 * math.sqrt(count / max_week)) * weekly_reveal)
+            _line(frame, [(x, weekly_base_y), (x, weekly_base_y - bar_h)], bar_color, alpha, 3 if count > 0 else 1)
+
+        # Chronology scan ties the day grid and weekly volume together.
         if 0.22 <= t <= 0.67:
             scan = (t - 0.22) / 0.45
-            sx = grid_x + scan * ((len(weeks) - 1) * (cell + gap) + cell)
-            _line(frame, [(sx, grid_y - 8), (sx, grid_y + 7 * (cell + gap) - gap + 8)], theme.accent, int(78 * fade), 1)
+            sx = grid_x + scan * (grid_right - grid_x)
+            _line(frame, [(sx, 137), (sx, weekly_base_y + 4)], theme.accent, int(72 * fade), 1)
 
-        _draw_footer_rule(frame, theme, 296, int(255 * fade))
-        _alpha_text(frame, (48, 314), "EXACT DAILY COUNTS / GITHUB GRAPHQL", size=9, color=theme.quiet, alpha=int(205 * fade), bold=True, mono=True, tracking=0.65)
-        _alpha_text(frame, (1152, 314), "NO EVENT WEIGHTING", size=9, color=theme.quiet, alpha=int(205 * fade), bold=True, mono=True, anchor="ra", tracking=0.65)
+        stats_reveal = _window(t, 0.58, 0.78) * fade
+        best_week_label = "—"
+        try:
+            start = dt.date.fromisoformat(summary["best_week_first_day"])
+            end = dt.date.fromisoformat(summary["best_week_last_day"])
+            best_week_label = f"{start.strftime('%b %d').upper()}–{end.strftime('%d')}"
+        except ValueError:
+            pass
+
+        _draw_footer_rule(frame, theme, 378, int(240 * fade))
+        stat_y = 394
+        _alpha_text(frame, (48, stat_y), "BEST WEEK", size=8, color=theme.quiet, alpha=int(190 * stats_reveal), bold=True, mono=True, tracking=0.7)
+        _alpha_text(frame, (48, stat_y + 17), f"{summary['best_week_count']} / {best_week_label}", size=11, color=theme.fg, alpha=int(235 * stats_reveal), bold=True, mono=True, tracking=0.2)
+
+        _alpha_text(frame, (385, stat_y), "BEST MONTH", size=8, color=theme.quiet, alpha=int(190 * stats_reveal), bold=True, mono=True, tracking=0.7)
+        _alpha_text(frame, (385, stat_y + 17), f"{summary['best_month_count']} / {summary['best_month_label']}", size=11, color=theme.fg, alpha=int(235 * stats_reveal), bold=True, mono=True, tracking=0.2)
+
+        _alpha_text(frame, (735, stat_y), "ACTIVE", size=8, color=theme.quiet, alpha=int(190 * stats_reveal), bold=True, mono=True, tracking=0.7)
+        _alpha_text(frame, (735, stat_y + 17), f"{summary['active_days']} DAYS / {summary['active_weeks']} WEEKS", size=11, color=theme.fg, alpha=int(235 * stats_reveal), bold=True, mono=True, tracking=0.2)
+
+        _alpha_text(frame, (1152, stat_y + 17), "EXACT GITHUB GRAPHQL", size=8, color=theme.quiet, alpha=int(185 * stats_reveal), bold=True, mono=True, anchor="ra", tracking=0.55)
         frames.append(frame.convert("RGB"))
     return frames
 
@@ -500,7 +642,15 @@ def _save_animation(frames: list[Image.Image], gif_path: Path, png_path: Path, *
             round(a[2] + (b[2] - a[2]) * local),
         ])
     palette.putpalette(entries[:768])
-    palette_frames = [frame.quantize(palette=palette, dither=Image.Dither.NONE) for frame in frames]
+    encoded_frames = []
+    motion_clock = [_rgb("#6866F5"), _rgb("#AAA8FF"), _rgb("#292C31")]
+    for index, frame in enumerate(frames):
+        stamped = frame.copy()
+        # One corner pixel is a codec heartbeat: visually imperceptible at 1200px wide,
+        # but it prevents GIF encoders from collapsing adjacent frames into long pauses.
+        stamped.putpixel((stamped.width - 1, stamped.height - 1), motion_clock[index % len(motion_clock)])
+        encoded_frames.append(stamped.quantize(palette=palette, dither=Image.Dither.NONE))
+    palette_frames = encoded_frames
     palette_frames[0].save(
         gif_path,
         save_all=True,
@@ -513,21 +663,49 @@ def _save_animation(frames: list[Image.Image], gif_path: Path, png_path: Path, *
     )
 
 
+def _save_static_frame(frames: list[Image.Image], png_path: Path) -> None:
+    png_path.parent.mkdir(parents=True, exist_ok=True)
+    hold_index = max(0, min(len(frames) - 1, round((len(frames) - 1) * 0.82)))
+    frames[hold_index].save(png_path, format="PNG", optimize=True)
+
+
 def render_motion_assets(data: dict, config: dict, output_dir: Path) -> list[Path]:
     output_dir.mkdir(parents=True, exist_ok=True)
+
+    # Remove legacy project GIFs so a refresh cannot leave heavyweight animations
+    # behind after v4 switches those surfaces to static, click-through project art.
+    for stale in output_dir.glob("*.gif"):
+        if stale.stem.split("-")[0] in {"mnestis", "rune"}:
+            stale.unlink()
+
     written: list[Path] = []
-    renderers = [
+    animated = [
         ("hero", render_hero_frames, "identity topology derived from active GitHub contribution days"),
-        ("mnestis", render_mnestis_frames, "Mnestis repository system flow"),
-        ("rune", render_rune_frames, "Rune orchestration system flow"),
         ("contributions", render_contribution_frames, "GitHub contributionCalendar exact daily counts"),
     ]
+    static = [
+        ("mnestis", render_mnestis_frames),
+        ("rune", render_rune_frames),
+    ]
+
     for theme_name, theme in THEMES.items():
-        for asset_name, renderer, source in renderers:
+        for asset_name, renderer, source in animated:
             frames = renderer(data, config, theme)
             gif_path = output_dir / f"{asset_name}-{theme_name}.gif"
             png_path = output_dir / f"{asset_name}-{theme_name}.png"
-            comment = f"bitreonx profile; source={source}; totalContributions={data['calendar']['total']}"
+            comment = (
+                f"bitreonx profile; source={source}; "
+                f"totalContributions={data['calendar']['total']}; "
+                f"calendarThrough={data['calendar'].get('through', '')}"
+            )
             _save_animation(frames, gif_path, png_path, comment=comment)
             written.extend([gif_path, png_path])
+
+        for asset_name, renderer in static:
+            frames = renderer(data, config, theme)
+            png_path = output_dir / f"{asset_name}-{theme_name}.png"
+            _save_static_frame(frames, png_path)
+            written.append(png_path)
+
     return sorted(written, key=lambda p: p.name)
+

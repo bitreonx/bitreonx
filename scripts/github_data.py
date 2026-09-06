@@ -34,6 +34,12 @@ query Profile($login: String!) {
       contributionCalendar {
         totalContributions
         colors
+        months {
+          firstDay
+          name
+          totalWeeks
+          year
+        }
         weeks {
           firstDay
           contributionDays {
@@ -111,18 +117,45 @@ def normalize_graphql_payload(payload: dict, config: dict) -> dict:
     if not calendar:
         raise ValueError("GitHub payload is missing contribution calendar")
 
+    months = []
+    for month in calendar.get("months") or []:
+        months.append({
+            "first_day": month.get("firstDay", ""),
+            "name": month.get("name", ""),
+            "total_weeks": int(month.get("totalWeeks") or 0),
+            "year": int(month.get("year") or 0),
+        })
+
     weeks = []
+    seen_dates: set[str] = set()
+    daily_total = 0
+    latest_date = ""
     for week in calendar.get("weeks") or []:
         days = []
         for day in week.get("contributionDays") or []:
+            value = day.get("date", "")
+            if value and value in seen_dates:
+                raise ValueError(f"GitHub contribution calendar integrity error: duplicate day {value}")
+            if value:
+                seen_dates.add(value)
+                latest_date = max(latest_date, value)
+            count = int(day.get("contributionCount") or 0)
+            daily_total += count
             days.append({
-                "date": day.get("date", ""),
+                "date": value,
                 "weekday": int(day.get("weekday") or 0),
-                "count": int(day.get("contributionCount") or 0),
+                "count": count,
                 "level": day.get("contributionLevel") or "NONE",
                 "color": day.get("color") or "#ebedf0",
             })
         weeks.append({"first_day": week.get("firstDay", ""), "days": days})
+
+    github_total = int(calendar.get("totalContributions") or 0)
+    if daily_total != github_total:
+        raise ValueError(
+            "GitHub contribution calendar integrity error: "
+            f"daily counts sum to {daily_total}, but GitHub totalContributions is {github_total}"
+        )
 
     return {
         "profile": {
@@ -136,9 +169,11 @@ def normalize_graphql_payload(payload: dict, config: dict) -> dict:
         },
         "repositories": featured,
         "calendar": {
-            "total": int(calendar.get("totalContributions") or 0),
+            "total": github_total,
             "colors": list(calendar.get("colors") or []),
+            "months": months,
             "weeks": weeks,
+            "through": latest_date,
         },
     }
 

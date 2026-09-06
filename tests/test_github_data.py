@@ -24,10 +24,30 @@ class GitHubDataTests(unittest.TestCase):
     def test_preserves_exact_contribution_counts(self):
         data = normalize_graphql_payload(self.payload, self.config)
         days = {day["date"]: day for week in data["calendar"]["weeks"] for day in week["days"]}
-        self.assertEqual(data["calendar"]["total"], 179)
+        self.assertEqual(data["calendar"]["total"], 181)
         self.assertEqual(days["2026-08-29"]["count"], 50)
         self.assertEqual(days["2026-08-27"]["count"], 21)
         self.assertEqual(days["2026-03-22"]["count"], 4)
+
+    def test_preserves_canonical_github_month_metadata(self):
+        data = normalize_graphql_payload(self.payload, self.config)
+        months = data["calendar"]["months"]
+        self.assertGreaterEqual(len(months), 12)
+        self.assertEqual(months[0]["name"], "September")
+        self.assertEqual(months[0]["year"], 2025)
+        self.assertEqual(months[-1]["name"], "September")
+        self.assertEqual(months[-1]["year"], 2026)
+
+    def test_rejects_calendar_when_daily_sum_does_not_match_github_total(self):
+        payload = json.loads(json.dumps(self.payload))
+        payload["data"]["user"]["contributionsCollection"]["contributionCalendar"]["totalContributions"] += 1
+        with self.assertRaisesRegex(ValueError, "integrity"):
+            normalize_graphql_payload(payload, self.config)
+
+    def test_graphql_query_requests_canonical_month_metadata(self):
+        from scripts.github_data import QUERY
+        self.assertIn("months {", QUERY)
+        self.assertIn("totalWeeks", QUERY)
 
     def test_missing_curated_repository_is_explicit(self):
         payload = json.loads(json.dumps(self.payload))

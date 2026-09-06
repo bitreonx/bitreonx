@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import datetime as dt
 import json
 from pathlib import Path
 
@@ -12,7 +13,7 @@ try:
         normalize_graphql_payload,
         token_from_environment,
     )
-    from scripts.motion_profile import render_motion_assets
+    from scripts.motion_profile import _calendar_summary, render_motion_assets
 except ModuleNotFoundError:
     from github_data import (  # type: ignore
         fetch_profile_data,
@@ -20,7 +21,7 @@ except ModuleNotFoundError:
         normalize_graphql_payload,
         token_from_environment,
     )
-    from motion_profile import render_motion_assets  # type: ignore
+    from motion_profile import _calendar_summary, render_motion_assets  # type: ignore
 
 
 def esc(value: object) -> str:
@@ -51,10 +52,97 @@ def _motion_picture(name: str, alt: str) -> str:
     ])
 
 
-def render_readme(config: dict) -> str:
+def _static_picture(name: str, alt: str) -> str:
+    base = f"./assets/motion/{name}"
+    return "\n".join([
+        "<picture>",
+        f'  <source media="(prefers-color-scheme: dark)" srcset="{base}-dark.png">',
+        f'  <img alt="{esc(alt)}" src="{base}-light.png" width="100%">',
+        "</picture>",
+    ])
+
+
+def _month_totals(calendar: dict) -> list[dict]:
+    counts: dict[tuple[int, int], int] = {}
+    for week in calendar.get("weeks") or []:
+        for day in week.get("days") or []:
+            value = day.get("date", "")
+            try:
+                parsed = dt.date.fromisoformat(value)
+            except ValueError:
+                continue
+            key = (parsed.year, parsed.month)
+            counts[key] = counts.get(key, 0) + int(day.get("count", 0))
+
+    ordered: list[dict] = []
+    seen: set[tuple[int, int]] = set()
+    through = calendar.get("through", "")
+    try:
+        through_date = dt.date.fromisoformat(through)
+    except ValueError:
+        through_date = None
+
+    for month in calendar.get("months") or []:
+        year = int(month.get("year") or 0)
+        try:
+            month_number = dt.datetime.strptime(month.get("name", ""), "%B").month
+        except ValueError:
+            continue
+        key = (year, month_number)
+        if key in seen:
+            continue
+        seen.add(key)
+        start_date = dt.date(year, month_number, 1)
+        if month_number == 12:
+            next_month = dt.date(year + 1, 1, 1)
+        else:
+            next_month = dt.date(year, month_number + 1, 1)
+        end_date = next_month - dt.timedelta(days=1)
+        if through_date and start_date <= through_date < end_date:
+            end_date = through_date
+        ordered.append({
+            "label": f"{month.get('name', '')[:3].upper()} {year}",
+            "count": counts.get(key, 0),
+            "start": start_date.isoformat(),
+            "end": end_date.isoformat(),
+        })
+    return ordered
+
+
+def _activity_details(data: dict, username: str) -> str:
+    calendar = data["calendar"]
+    summary = _calendar_summary(calendar.get("weeks") or [])
+    month_totals = _month_totals(calendar)
+    through = calendar.get("through", "")
+    try:
+        through_label = dt.date.fromisoformat(through).strftime("%b %d, %Y")
+    except ValueError:
+        through_label = through or "latest GitHub calendar day"
+
+    month_cells = " · ".join(
+        f'<a href="https://github.com/{esc(username)}?tab=overview&amp;from={item["start"]}&amp;to={item["end"]}">'
+        f'<code>{esc(item["label"])} {item["count"]}</code></a>'
+        for item in month_totals
+    )
+    return "\n".join([
+        "<details>",
+        f"<summary><strong>Activity details</strong> · {calendar['total']} exact contributions · Calendar through {esc(through_label)}</summary>",
+        "",
+        f"<p><strong>Best week</strong> {summary['best_week_count']} &nbsp;·&nbsp; "
+        f"<strong>Best month</strong> {summary['best_month_count']} / {esc(summary['best_month_label'])} &nbsp;·&nbsp; "
+        f"<strong>Active</strong> {summary['active_days']} days / {summary['active_weeks']} weeks</p>",
+        f"<p>{month_cells}</p>",
+        '<p><sub>Source: GitHub GraphQL <code>contributionsCollection.contributionCalendar</code>. '
+        'The refresh is rejected if the sum of daily counts differs from GitHub <code>totalContributions</code>.</sub></p>',
+        "</details>",
+    ])
+
+
+def render_readme(config: dict, data: dict) -> str:
     username = config["username"]
     display = config.get("display_name") or username
     featured = config.get("featured_repositories") or []
+    official_profile = f"https://github.com/{username}?tab=overview"
 
     lines = [
         "<!-- Generated from profile.json + live GitHub data. Edit profile.json, not README.md. -->",
@@ -70,7 +158,7 @@ def render_readme(config: dict) -> str:
         url = f"https://github.com/{username}/{name}"
         lines.extend([
             f'<a href="{esc(url)}">',
-            _motion_picture(slug, f"{name} — animated system overview backed by GitHub repository metadata"),
+            _static_picture(slug, f"{name} — system overview backed by GitHub repository metadata"),
             "</a>",
             "",
         ])
@@ -78,10 +166,13 @@ def render_readme(config: dict) -> str:
     lines.extend([
         '<p><sub>BUILD ACTIVITY</sub></p>',
         "",
-        _motion_picture("contributions", f"@{username} — real GitHub contribution calendar animation"),
+        f'<a href="{esc(official_profile)}" title="Open the official interactive GitHub contribution graph">',
+        _motion_picture("contributions", f"@{username} — exact GitHub contribution calendar"),
+        "</a>",
         "",
-        f'<p><sub>DATA SOURCE</sub><br><code>GitHub GraphQL → contributionsCollection.contributionCalendar</code><br>'
-        f'<sub>Every illuminated day comes from the exact contribution count returned for <code>@{esc(username)}</code>. No synthetic events.</sub></p>',
+        f'<p align="right"><sub><a href="{esc(official_profile)}">Open the official interactive graph →</a></sub></p>',
+        "",
+        _activity_details(data, username),
         "",
         '<p><sub>CURRENTLY</sub><br>' + esc(config.get("currently") or "Building developer systems.") + "</p>",
         "",
@@ -122,8 +213,8 @@ def main() -> int:
         data = fetch_profile_data(username, token_from_environment(), config)
 
     paths = render_motion_assets(data, config, Path(args.output_dir))
-    Path(args.readme).write_text(render_readme(config), encoding="utf-8")
-    print(f"rendered {len(paths)} motion assets and {args.readme} for @{username}")
+    Path(args.readme).write_text(render_readme(config, data), encoding="utf-8")
+    print(f"rendered {len(paths)} profile assets and {args.readme} for @{username}")
     return 0
 
 
