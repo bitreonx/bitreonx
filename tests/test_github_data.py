@@ -1,8 +1,10 @@
 import json
+import os
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 
-from scripts.github_data import load_profile_config, normalize_graphql_payload
+from scripts.github_data import QUERY, load_profile_config, normalize_graphql_payload, token_from_environment
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -48,6 +50,42 @@ class GitHubDataTests(unittest.TestCase):
         from scripts.github_data import QUERY
         self.assertIn("months {", QUERY)
         self.assertIn("totalWeeks", QUERY)
+
+
+    def test_graphql_query_authenticates_viewer_and_requests_restricted_contribution_metadata(self):
+        self.assertIn("viewer {", QUERY)
+        self.assertIn("hasAnyRestrictedContributions", QUERY)
+        self.assertIn("restrictedContributionsCount", QUERY)
+
+    def test_rejects_payload_authenticated_as_a_different_github_user(self):
+        payload = json.loads(json.dumps(self.payload))
+        payload["data"]["viewer"] = {"login": "someone-else"}
+        with self.assertRaisesRegex(ValueError, "authenticated GitHub user"):
+            normalize_graphql_payload(payload, self.config)
+
+    def test_profile_token_never_falls_back_to_github_token(self):
+        with patch.dict(os.environ, {"GITHUB_TOKEN": "repo-scoped-token"}, clear=True):
+            with self.assertRaisesRegex(ValueError, "PROFILE_TOKEN"):
+                token_from_environment()
+
+    def test_profile_token_is_used_when_present(self):
+        with patch.dict(os.environ, {"PROFILE_TOKEN": "profile-token", "GITHUB_TOKEN": "repo-token"}, clear=True):
+            self.assertEqual(token_from_environment(), "profile-token")
+
+
+    def test_classic_token_scope_validator_requires_read_user(self):
+        from scripts.github_data import validate_token_identity_and_scopes
+        with self.assertRaisesRegex(ValueError, "read:user"):
+            validate_token_identity_and_scopes({"login": "bitreonx"}, "repo", "bitreonx")
+
+    def test_classic_token_scope_validator_accepts_owner_with_read_user(self):
+        from scripts.github_data import validate_token_identity_and_scopes
+        validate_token_identity_and_scopes({"login": "bitreonx"}, "read:user, user:email", "bitreonx")
+
+    def test_classic_token_scope_validator_rejects_fine_grained_or_missing_scope_header(self):
+        from scripts.github_data import validate_token_identity_and_scopes
+        with self.assertRaisesRegex(ValueError, "classic personal access token"):
+            validate_token_identity_and_scopes({"login": "bitreonx"}, "", "bitreonx")
 
     def test_missing_curated_repository_is_explicit(self):
         payload = json.loads(json.dumps(self.payload))

@@ -517,9 +517,10 @@ def render_contribution_frames(data: dict, config: dict, theme: MotionTheme, fra
         reveal = _window(t, 0.04, 0.20) * fade
 
         _alpha_text(frame, (48, 30), "BUILD ACTIVITY / GITHUB", size=10, color=theme.quiet, alpha=int(210 * fade), bold=True, mono=True, tracking=1.5)
-        resolved = _window(t, 0.55, 0.74)
-        total_display = round(data["calendar"]["total"] * resolved)
-        _alpha_text(frame, (48, 64), f"{total_display}", size=38, color=theme.fg, alpha=int(255 * reveal), bold=True)
+        # The real GitHub total is visible from frame one. Only the calendar cells animate;
+        # the headline number never performs a fake 0 → total count-up.
+        total_display = int(data["calendar"]["total"])
+        _alpha_text(frame, (48, 64), f"{total_display}", size=38, color=theme.fg, alpha=int(255 * fade), bold=True)
         _alpha_text(frame, (128, 75), "CONTRIBUTIONS / LAST 12 MONTHS", size=10, color=theme.muted, alpha=int(210 * reveal), bold=True, mono=True, tracking=0.8)
 
         peak_label = peak.get("date", "")

@@ -2994,8 +2994,13 @@
               "year": 2026
             }
           ]
-        }
+        },
+        "hasAnyRestrictedContributions": false,
+        "restrictedContributionsCount": 0
       }
+    },
+    "viewer": {
+      "login": "bitreonx"
     }
   }
 }

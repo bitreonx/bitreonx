@@ -8,8 +8,12 @@ import urllib.request
 from pathlib import Path
 
 GRAPHQL_URL = "https://api.github.com/graphql"
+REST_USER_URL = "https://api.github.com/user"
 QUERY = r'''
 query Profile($login: String!) {
+  viewer {
+    login
+  }
   user(login: $login) {
     login
     name
@@ -31,6 +35,8 @@ query Profile($login: String!) {
       }
     }
     contributionsCollection {
+      hasAnyRestrictedContributions
+      restrictedContributionsCount
       contributionCalendar {
         totalContributions
         colors
@@ -86,7 +92,17 @@ def _normalize_repo(repo: dict) -> dict:
 def normalize_graphql_payload(payload: dict, config: dict) -> dict:
     if payload.get("errors"):
         raise ValueError(f"GitHub GraphQL errors: {payload['errors']}")
-    user = (payload.get("data") or {}).get("user")
+    root = payload.get("data") or {}
+    viewer = root.get("viewer") or {}
+    viewer_login = viewer.get("login") or ""
+    expected_login = config["username"]
+    if viewer_login.lower() != expected_login.lower():
+        raise ValueError(
+            "GitHub authenticated GitHub user mismatch: "
+            f"expected {expected_login}, got {viewer_login or 'unknown'}"
+        )
+
+    user = root.get("user")
     if not user:
         raise ValueError("GitHub payload is missing user")
 
@@ -170,6 +186,8 @@ def normalize_graphql_payload(payload: dict, config: dict) -> dict:
         "repositories": featured,
         "calendar": {
             "total": github_total,
+            "has_restricted_contributions": bool(collection.get("hasAnyRestrictedContributions")),
+            "restricted_contributions_count": int(collection.get("restrictedContributionsCount") or 0),
             "colors": list(calendar.get("colors") or []),
             "months": months,
             "weeks": weeks,
@@ -178,9 +196,54 @@ def normalize_graphql_payload(payload: dict, config: dict) -> dict:
     }
 
 
-def fetch_profile_data(username: str, token: str, config: dict) -> dict:
+def validate_token_identity_and_scopes(identity: dict, scopes_header: str, username: str) -> None:
+    login = identity.get("login") or ""
+    if login.lower() != username.lower():
+        raise ValueError(
+            "PROFILE_TOKEN authenticated as the wrong GitHub user: "
+            f"expected {username}, got {login or 'unknown'}"
+        )
+
+    scopes = {scope.strip().lower() for scope in scopes_header.split(",") if scope.strip()}
+    if not scopes:
+        raise ValueError(
+            "PROFILE_TOKEN must be a classic personal access token with read:user. "
+            "Fine-grained/repository tokens are rejected because they can silently omit private contribution counts."
+        )
+    if "read:user" not in scopes and "user" not in scopes:
+        raise ValueError(
+            "PROFILE_TOKEN is missing the required read:user scope. "
+            "Create a classic personal access token with read:user and save it as the PROFILE_TOKEN Actions secret."
+        )
+
+
+def validate_profile_token(username: str, token: str) -> None:
     if not token:
-        raise ValueError("GitHub token is required; set PROFILE_TOKEN or GITHUB_TOKEN")
+        raise ValueError(
+            "PROFILE_TOKEN is required. The profile renderer refuses to fall back to GITHUB_TOKEN "
+            "because repository-scoped tokens can omit private contribution counts."
+        )
+    request = urllib.request.Request(
+        REST_USER_URL,
+        method="GET",
+        headers={
+            "Authorization": f"Bearer {token}",
+            "Accept": "application/vnd.github+json",
+            "User-Agent": f"{username}-profile-token-check",
+            "X-Github-Api-Version": "2022-11-28",
+        },
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=30) as response:
+            identity = json.loads(response.read().decode("utf-8"))
+            scopes_header = response.headers.get("X-OAuth-Scopes", "")
+    except (urllib.error.URLError, TimeoutError, json.JSONDecodeError) as exc:
+        raise RuntimeError(f"GitHub PROFILE_TOKEN validation failed: {exc}") from exc
+    validate_token_identity_and_scopes(identity, scopes_header, username)
+
+
+def fetch_profile_data(username: str, token: str, config: dict) -> dict:
+    validate_profile_token(username, token)
     body = json.dumps({"query": QUERY, "variables": {"login": username}}).encode("utf-8")
     request = urllib.request.Request(
         GRAPHQL_URL,
@@ -203,4 +266,9 @@ def fetch_profile_data(username: str, token: str, config: dict) -> dict:
 
 
 def token_from_environment() -> str:
-    return os.environ.get("PROFILE_TOKEN") or os.environ.get("GITHUB_TOKEN") or ""
+    token = os.environ.get("PROFILE_TOKEN") or ""
+    if not token:
+        raise ValueError(
+            "PROFILE_TOKEN is required; GITHUB_TOKEN fallback is intentionally disabled to protect contribution accuracy."
+        )
+    return token

@@ -3,6 +3,7 @@ import json
 import shutil
 import tempfile
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 
 from PIL import Image
@@ -78,6 +79,22 @@ class MotionProfileTests(unittest.TestCase):
         self.assertEqual(summary["best_month_label"], "AUG 2026")
         self.assertEqual(summary["active_days"], 28)
         self.assertEqual(summary["active_weeks"], 10)
+
+
+    def test_contribution_total_is_real_from_the_first_animation_frame(self):
+        from scripts.motion_profile import THEMES, render_contribution_frames
+        captured = []
+
+        def capture_text(frame, xy, text, **kwargs):
+            captured.append((text, kwargs.get("alpha")))
+
+        with patch("scripts.motion_profile._alpha_text", side_effect=capture_text):
+            render_contribution_frames(self.data, self.config, THEMES["light"], frame_count=2)
+
+        first_numeric = next((item for item in captured if item[0].isdigit()), None)
+        self.assertIsNotNone(first_numeric)
+        self.assertEqual(first_numeric[0], "181")
+        self.assertGreater(first_numeric[1], 0)
 
     def test_frame_generation_is_deterministic(self):
         from scripts.motion_profile import THEMES, render_hero_frames

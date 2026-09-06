@@ -21,6 +21,12 @@ class WorkflowContractTests(unittest.TestCase):
         self.assertIn("assets/motion", text)
         self.assertIn("github-actions[bot]", text)
 
+    def test_workflow_requires_profile_token_and_has_no_github_token_fallback(self):
+        text = WORKFLOW.read_text(encoding="utf-8")
+        self.assertIn("PROFILE_TOKEN: ${{ secrets.PROFILE_TOKEN }}", text)
+        self.assertNotIn("GITHUB_TOKEN: ${{ github.token }}", text)
+        self.assertIn("PROFILE_TOKEN is required", text)
+
 
 if __name__ == "__main__":
     unittest.main()
